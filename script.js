@@ -125,7 +125,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const mouse = {
         x: null,
         y: null,
-        radius: 150
+        radius: 120 // Interaction radius
     }
 
     window.addEventListener('mousemove', (event) => {
@@ -133,7 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
         mouse.y = event.y;
     });
     
-    // Clear mouse position when leaving window to avoid stuck particles
+    // Clear mouse position
     window.addEventListener('mouseout', () => {
         mouse.x = undefined;
         mouse.y = undefined;
@@ -147,10 +147,11 @@ document.addEventListener('DOMContentLoaded', () => {
             this.directionX = directionX;
             this.directionY = directionY;
             this.size = size;
+            this.baseSize = size; // Remember original size
             this.color = color;
+            this.density = (Math.random() * 30) + 1; // For movement variety
         }
 
-        // Method to draw individual particle
         draw() {
             ctx.beginPath();
             ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2, false);
@@ -158,9 +159,8 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.fill();
         }
 
-        // Check particle position, check mouse position, move the particle, draw the particle
         update() {
-            // Check if particle is still within canvas
+            // Check canvas boundaries
             if (this.x > canvas.width || this.x < 0) {
                 this.directionX = -this.directionX;
             }
@@ -168,105 +168,73 @@ document.addEventListener('DOMContentLoaded', () => {
                 this.directionY = -this.directionY;
             }
 
-            // Check collision detection - mouse position / particle position
+            // Mouse Collision & Swarm Logic
             let dx = mouse.x - this.x;
             let dy = mouse.y - this.y;
             let distance = Math.sqrt(dx*dx + dy*dy);
             
-            // "Fills with little balls" effect: If mouse is close, attract or enlarge potentially
-            // BUT user said "se llene" (fills up). Let's spawn more or make them visible/bigger.
-            // Let's implement a connection effect + bubble size increase
-            if (distance < mouse.radius) {
-                if (mouse.x < this.x && this.x < canvas.width - this.size * 10) {
-                    this.x += 2; // Move away slightly or attract? Let's attract for "filling"
+            // "Exactamente donde este el mouse" -> Strong attraction
+            if (distance < mouse.radius + 50) { // Large catchment area
+                // Calculate pull force
+                const forceDirectionX = dx / distance;
+                const forceDirectionY = dy / distance;
+                const force = (mouse.radius - distance) / mouse.radius;
+                
+                // Move towards mouse (Swarm effect)
+                const directionX = forceDirectionX * force * this.density;
+                const directionY = forceDirectionY * force * this.density;
+
+                if (distance < mouse.radius) {
+                     this.x += directionX * 0.8; // Move closer
+                     this.y += directionY * 0.8;
+                     // Increase size noticeably
+                     if (this.size < 12) this.size += 0.5; 
+                } else {
+                     // Just nudge towards
+                     this.x += directionX * 0.2;
+                     this.y += directionY * 0.2;
                 }
-                if (mouse.x > this.x && this.x > this.size * 10) {
-                   this.x -= 2;
-                }
-                if (mouse.y < this.y && this.y < canvas.height - this.size * 10) {
-                    this.y += 2;
-                }
-                if (mouse.y > this.y && this.y > this.size * 10) {
-                    this.y -= 2;
-                }
-                // Increase size
-                if (this.size < 8) this.size += 0.2;
             } else {
-                if (this.size > 3) this.size -= 0.2;
+                // Return to normal size
+                if (this.size > this.baseSize) {
+                    this.size -= 0.5;
+                }
+                // Normal random movement
+                this.x += this.directionX;
+                this.y += this.directionY;
             }
 
-            // Move particle
-            this.x += this.directionX;
-            this.y += this.directionY;
-
-            // Draw particle
             this.draw();
         }
     }
 
-    // Create particle array
+    // Create MANY particles
     function init() {
         particlesArray = [];
-        let numberOfParticles = (canvas.height * canvas.width) / 9000;
+        // MUCH higher density: divider reduced from 9000 to 2500
+        let numberOfParticles = (canvas.height * canvas.width) / 2500;
+        
         for (let i = 0; i < numberOfParticles; i++) {
-            let size = (Math.random() * 3) + 1; // Variable size
+            let size = (Math.random() * 4) + 1;
             let x = (Math.random() * ((innerWidth - size * 2) - (size * 2)) + size * 2);
             let y = (Math.random() * ((innerHeight - size * 2) - (size * 2)) + size * 2);
-            let directionX = (Math.random() * 2) - 1; // Speed vector
-            let directionY = (Math.random() * 2) - 1;
+            let directionX = (Math.random() * 1) - 0.5; // Slower ambient movement
+            let directionY = (Math.random() * 1) - 0.5;
             
-            // Random colors from theme
-            const colors = ['rgba(79, 70, 229, 0.4)', 'rgba(236, 72, 153, 0.4)', 'rgba(255, 255, 255, 0.3)'];
+            // Vibrant colors
+            const colors = ['rgba(79, 70, 229, 0.7)', 'rgba(236, 72, 153, 0.7)', 'rgba(255, 255, 255, 0.6)'];
             let color = colors[Math.floor(Math.random() * colors.length)];
 
             particlesArray.push(new Particle(x, y, directionX, directionY, size, color));
         }
     }
 
-    // Animation Loop
     function animate() {
         requestAnimationFrame(animate);
         ctx.clearRect(0, 0, innerWidth, innerHeight);
 
         for (let i = 0; i < particlesArray.length; i++) {
             particlesArray[i].update();
-        }
-        connect();
-    }
-
-    // Check if particles are close enough to draw line between them
-    function connect() {
-        let opacityValue = 1;
-        for (let a = 0; a < particlesArray.length; a++) {
-            for (let b = a; b < particlesArray.length; b++) {
-                let distance = ((particlesArray[a].x - particlesArray[b].x) * (particlesArray[a].x - particlesArray[b].x))
-                + ((particlesArray[a].y - particlesArray[b].y) * (particlesArray[a].y - particlesArray[b].y));
-                
-                // Connect particles to each other
-                if (distance < (canvas.width/7) * (canvas.height/7)) {
-                    opacityValue = 1 - (distance/20000);
-                     // Mouse interaction: Make lines stronger near mouse
-                    let dx = mouse.x - particlesArray[a].x;
-                    let dy = mouse.y - particlesArray[a].y;
-                    let mouseDistance = Math.sqrt(dx*dx + dy*dy);
-
-                    if (mouseDistance < 150) {
-                        ctx.strokeStyle = 'rgba(79, 70, 229,' + (opacityValue + 0.2) + ')'; // Stronger color near mouse
-                        ctx.lineWidth = 1.5;
-                    } else {
-                        ctx.strokeStyle = 'rgba(200, 200, 200,' + (opacityValue * 0.2) + ')';
-                         ctx.lineWidth = 0.5;
-                    }
-                    
-                    if (mouseDistance < 250) { // Only connect if near mouse or generally close?
-                        // Draw line
-                        ctx.beginPath();
-                        ctx.moveTo(particlesArray[a].x, particlesArray[a].y);
-                        ctx.lineTo(particlesArray[b].x, particlesArray[b].y);
-                        ctx.stroke();
-                    }
-                }
-            }
         }
     }
 
