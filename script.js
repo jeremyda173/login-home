@@ -24,20 +24,21 @@ document.addEventListener('DOMContentLoaded', () => {
     // Real-time Validation
     emailInput.addEventListener('input', () => {
         clearError(emailInput, emailError);
+        const group = emailInput.closest('.input-group');
         if (validateEmail(emailInput.value)) {
-            emailInput.closest('.input-group').classList.add('valid');
+            group.classList.add('valid');
         } else {
-            emailInput.closest('.input-group').classList.remove('valid');
+            group.classList.remove('valid');
         }
     });
 
     passwordInput.addEventListener('input', () => {
         clearError(passwordInput, passwordError);
-        // Optional: Add valid class to password if desired, but primarily we want the eye
+        const group = passwordInput.closest('.input-group');
         if (passwordInput.value.length >= 6) {
-             passwordInput.closest('.input-group').classList.add('valid');
+             group.classList.add('valid');
         } else {
-             passwordInput.closest('.input-group').classList.remove('valid');
+             group.classList.remove('valid');
         }
     });
 
